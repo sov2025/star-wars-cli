@@ -1,0 +1,13 @@
+services:
+    api:
+        image: aaronbate/socketio-backend
+        container_name: star-wars-api
+        ports:
+            - "3000:3000"
+        restart: unless-stopped
+        networks:
+            - star-wars-network
+
+networks:
+    star-wars-network:
+        driver: bridge
