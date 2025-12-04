@@ -74,20 +74,24 @@ export class StarWarsApiClient {
         };
 
         const handleSearchResponse = (response: unknown) => {
-            try {
-                const validResponse = apiSearchResponseSchema.parse(response);
+            const parseResult = apiSearchResponseSchema.safeParse(response);
+            
+            if (!parseResult.success) {
+                emitErrorAndStop(`Invalid response format received from API: ${parseResult.error}`);
 
-                if (isResult(validResponse)) {
-                    emitter.emit("data", validResponse);
+                return;
+            }
 
-                    if (validResponse.page === validResponse.resultCount) {
-                        shouldStop = true;
-                    }
-                } else {
-                    emitErrorAndStop(`Search Error: ${validResponse.error}`);
+            const validResponse = parseResult.data;
+
+            if (isResult(validResponse)) {
+                emitter.emit("data", validResponse);
+
+                if (validResponse.page === validResponse.resultCount) {
+                    shouldStop = true;
                 }
-            } catch (error) {
-                emitErrorAndStop(`Invalid response format received from API: ${error}`);
+            } else {
+                emitErrorAndStop(`Search Error: ${validResponse.error}`);
             }
         };
 
