@@ -45,7 +45,10 @@ export class StarWarsApiClient {
         this.wsDsn = wsDsn;
     }
 
-    public async *searchCharacter(query: ApiSearchRequest): AsyncGenerator<ApiSearchResult | Error> {
+    public async *searchCharacter(
+        query: ApiSearchRequest,
+        abortSignal: AbortSignal,
+    ): AsyncGenerator<ApiSearchResult | Error> {
         const emitter = new EventEmitter();
         const ws: Socket<ListenEvents, EmitEvents> = io(this.wsDsn, {
             reconnection: false,
@@ -75,7 +78,7 @@ export class StarWarsApiClient {
 
         const handleSearchResponse = (response: unknown) => {
             const parseResult = apiSearchResponseSchema.safeParse(response);
-            
+
             if (!parseResult.success) {
                 emitErrorAndStop(`Invalid response format received from API: ${parseResult.error}`);
 
@@ -104,7 +107,7 @@ export class StarWarsApiClient {
 
             refreshTimeout();
 
-            for await (const [data] of on(emitter, "data")) {
+            for await (const [data] of on(emitter, "data", { signal: abortSignal })) {
                 yield data as ApiSearchResult | Error;
 
                 if (shouldStop) {
@@ -113,6 +116,13 @@ export class StarWarsApiClient {
 
                 refreshTimeout();
             }
+        } catch (error) {
+            if (error.code === "ABORT_ERR") {
+                // let finally handle the cleanup
+                return;
+            }
+
+            throw error;
         } finally {
             emitter.removeAllListeners();
 
@@ -123,6 +133,10 @@ export class StarWarsApiClient {
             // although already cleaned, do it again just in case for defensive programming
             if (responseTimeout) {
                 clearTimeout(responseTimeout);
+            }
+
+            if (abortSignal.aborted) {
+                console.log("\n ! Cleanup handled due to abort signal");
             }
         }
     }

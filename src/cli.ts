@@ -1,5 +1,4 @@
 import * as readline from "node:readline";
-import { onAbort } from "./abort";
 
 export class CliPrompt {
     private readonly rl: readline.Interface;
@@ -13,9 +12,8 @@ export class CliPrompt {
             output: process.stdout,
             prompt: "Enter your search query for a Star Wars character: ",
             historySize: 10,
+            signal: abortController.signal,
         });
-
-        onAbort(this.abortController.signal, () => this.rl.close());
 
         this.rl.on("SIGINT", () => this.abortController.abort());
         this.rl.on("SIGTERM", () => this.abortController.abort());

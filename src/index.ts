@@ -1,8 +1,8 @@
 import { StarWarsApiClient } from "./api-client";
 import { CliPrompt } from "./cli";
-import { createAbortContext } from "./abort";
+import { createShutdownAbortContext } from "./abort";
 
-const { controller } = createAbortContext();
+const { controller, signal } = createShutdownAbortContext();
 
 const wsUrl = (process.env.STARWARS_API_WS || "ws://localhost:3000") as `ws://${string}`;
 
@@ -28,7 +28,7 @@ for await (const line of cli) {
 
     console.log(`\n > Searching for character: "${query}"\n`);
 
-    for await (const searchResult of apiClient.searchCharacter({ query })) {
+    for await (const searchResult of apiClient.searchCharacter({ query }, signal)) {
         if (searchResult instanceof Error) {
             console.error(`\t  - Error: ${searchResult.message}\n`);
         } else {
@@ -38,7 +38,15 @@ for await (const line of cli) {
         }
     }
 
+    if (signal.aborted) {
+        // we can reach this specific point if the signal is aborted mid search (yield)
+        break;
+    }
+
     // a new beginning...
     console.log('\nSearch ended. You can enter a new search query, or type "exit" to quit.\n');
     cli.prompt();
 }
+
+// once we reach here, we can print the final message
+console.log("\n\nShutting down...");
